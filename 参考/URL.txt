@@ -1,0 +1,63 @@
+# MCW03
+
+- 秋月電子
+  - https://akizukidenshi.com/catalog/g/gM-04264/
+- 各端子の扱い方
+  - https://oshiete.goo.ne.jp/qa/6992506.html
+- ざっくりした回路図（使用例）
+  - https://blog.goo.ne.jp/kaminokidaido/e/8171cc5bd4e33180d882a8b5da8ed4c7
+- 特性的な話
+  - http://www.op316.com/tubes/datalib/dcdc-mcw03.htm
+
+
+# NJM4580DD
+
+- 秋月
+  - https://akizukidenshi.com/catalog/g/gI-00069/
+
+
+# LT1167
+
+- 秋月
+  - https://akizukidenshi.com/catalog/g/gI-02789/
+- 仕組みとか
+  - https://www.analog.com/jp/education/landing-pages/003/inamp-effective-way.html
+
+# Arduino
+## Serial
+
+- Serial.read()
+  - https://cdn.arduino.cc/reference/jp/language/functions/communication/serial/read/
+
+## SPI
+
+- Arduino Micro/MKR1000 SPI通信
+  - https://qiita.com/UchiwaFuujinn/items/6c6e241f8a5312d7097e
+- 設定 "ArduinoでSPIを使う時の備忘録"
+  - https://debuglab.jp/memorandums_using_spi_with_arduino/
+- 設定 "ArduinoでSPI通信を行う方法"
+  - https://stupiddog.jp/note/archives/976
+- 日本語リファレンス
+  - http://www.musashinodenpa.com/arduino/ref/index.php?f=1&pos=539
+- Arduino SPI通信とは
+  - https://omoroya.com/arduino-extra-edition-07/
+- ArduinoとMCP3204
+  - https://hawksnowlog.blogspot.com/2017/03/arduino-with-mcp3204.html
+
+
+# MCP3204
+
+- PICで
+  - https://j.komina.info/wiki/504943A5DEA5A4A5B3A5F32F4D4350333230342F33323038A4F2BBC8A4A6.html
+- MicroPythonでADC
+  - https://blog.boochow.com/article/micropython-mcp3204-rpi.html
+- ArduinoとMCP3204
+  - https://hawksnowlog.blogspot.com/2017/03/arduino-with-mcp3204.html
+
+
+# 今後参考にするかもしれないEBMに関する記事
+
+- https://www.jstage.jst.go.jp/article/jspo/35/1/35_24/_pdf/-char/ja
+- https://electronic.tousekice.com/%E7%B0%A1%E6%98%93%E7%AD%8B%E9%9B%BB%E8%A8%88%E3%81%AE%E8%87%AA%E4%BD%9C%E3%80%80%E6%A7%8B%E6%83%B3%E7%B7%A8/
+
+

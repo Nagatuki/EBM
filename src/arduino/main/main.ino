@@ -85,7 +85,8 @@ void serialSendVoltage(int channel, double voltage) {
 void timerFunc() {
   for (int i = 0; i < channelArraySize; ++i) {
     int data = readADC(channelArray[i]);
-    serialSendVoltage(channelArray[i], ADCVREF * data / ADCMAX);
+    double ipt_v = ADCVREF * data / ADCMAX;
+    serialSendVoltage(channelArray[i], ipt_v * 2 - 5.0);
   }
 }
 

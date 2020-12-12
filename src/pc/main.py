@@ -1,149 +1,117 @@
-import serial
-import numpy as np
-import matplotlib.pyplot as plt
-import sys
+from ArduinoSerial import ArduinoSerial
+from VoltageData import VoltageData
+from View import View
+
+from serial.serialutil import SerialException
+
+from multiprocessing import Process, Queue, Event
 import time
 
 
-UPDATE_CNT = 100
+# 秒間のグラフ更新回数
+GRAPH_UPDATE_FREQ = 10
+GRAPH_SIZE = 1
+GRAPH_LENGTH = 2000
 
-class ArduinoSerial:
-    def __init__(self):
-        self.BAUDRATE = "19200"
-        self.TIMEOUT = 0.1
-        self.com = None
+def wait_start():
+    while True:
+        ipt = input('Press "start"\n>>')
+        if ipt == "start":
+           return 
 
-    def open(self, com_num):
-        self.com = serial.Serial("COM" + com_num, self.BAUDRATE, timeout = 0.1)
-        time.sleep(3)
-
-    def close(self):
-        if self.com == None:
+def wait_stop():
+    while True:
+        ipt = input('Press "stop" to terminate jobs\n>>')
+        if ipt == 'stop':
             return
-        self.com.close()
 
-    def start(self):
-        self.com.write(b"s")
+def serial_data_receiver(events, queue, com_num):
+    try:
+        arduino_serial = ArduinoSerial()
+        arduino_serial.open(com_num)
+    except SerialException:
+        print("\nError Occurred: could not open port 'COM{}' \n".format(com_num))
+        print("End of batch job.\n")
+        events['failed_to_open'].set()
+    else:
+        print("\nCOM port open.\n")
+    
+    events['open'].set()
+    events['start'].wait()
+    
+    try:
+        arduino_serial.start()
+        while not events['close'].is_set():
+            data = arduino_serial.read_voltage()
+            data and queue.put(data)
+    finally:
+        arduino_serial.stop()
+        arduino_serial.close()
 
-    def stop(self):
-        self.com.write(b"e")
+# Viewにdataをコピーして渡せば、データの保持と描画をわけてマルチスレッド可能だが...
+# コピーコストの削減を優先した
+def view_manager(events, queue):
+    voltage_data = VoltageData(size=GRAPH_SIZE, length=GRAPH_LENGTH)
+    view = View(data=voltage_data)
+    view.show()
 
-    def clear(self):
-        # バッファ内のゴミを長めに受信して(timeoutさせて)棄てる...らしい
-        self.com.read(1000)
+    INTERVAL = 1 / GRAPH_UPDATE_FREQ
+    BASE_TIME = time.time()
 
-    def read_voltage(self):
-        ipt = self.com.readline().decode('shift_jis').replace("\r\n", "")
+    while not events['stop'].is_set():
+        while not queue.empty():
+            d = queue.get()
+            voltage_data.add_data(d)
+        
+        view.update()
 
-        # データが入ってなければ無視
-        if len(ipt) == 0:
-            return None
-
-        ipt = ipt.split(" ")
-
-        if len(ipt) == 2:
-            ret = dict()
-            ret["CH"] = int(ipt[0])
-            ret["Voltage"] = float(ipt[1])
-            return ret
-
-        return None
-
-
-class View:
-    def __init__(self, graph_size=1, length=500, top=5.0, bottom=-5.0):
-        self.graph_size = graph_size
-        self.length = length
-        self.top = top
-        self.bottom = bottom
-
-        self.time = np.array([i for i in range(length)])
-        self.data = np.zeros((graph_size, length), dtype='float64')
-        self.idx = np.zeros(graph_size, dtype=int)
-        self.labels = np.array(["CH" + str(i) for i in range(graph_size)])
-
-        self.fig = plt.figure()
-        self.axes = self._create_axes(self.fig, graph_size)
-
-    # def _setting(self):
-
-    def _create_axes(self, fig, size):
-        if size == 1:
-            return [fig.add_subplot(1, 1, 1)]
-
-        if size == 2:
-            return [fig.add_subplot(1, 2, 1), fig.add_subplot(1, 2, 2)]
-
-        if size == 3 or size == 4:
-            return [fig.add_subplot(2, 2, i) for i in range(size)]
-
-        if size == 5 or size == 6:
-            return [fig.add_subplot(2, 3, i) for i in range(size)]
-
-    def _draw(self, ax, data, label, time):
-        ax.plot(self.time, data, label=label)
-        ax.legend(loc='upper right')
-        ax.set_ylim(self.bottom, self.top)
-        ax.set_xlabel("time")
-        ax.set_ylabel("Voltage (mV)")
-
-    def show(self, sleep_time=0.0001):
-        for ax, data, label in zip(self.axes, self.data, self.labels):
-            self._draw(ax, data, label, sleep_time)
-        plt.draw()
-        plt.pause(sleep_time)
-
-    def update(self, sleep_time=0.0001):
-        plt.cla()
-        self.show(sleep_time)
-
-    def add_data(self, data):
-        pos = data["CH"]
-        self.data[pos, self.idx[pos]] = data["Voltage"]
-        self.idx[pos] = (self.idx[pos] + 1) % self.length
-
-
+        next_time = ((BASE_TIME - time.time()) % INTERVAL) or INTERVAL
+        time.sleep(next_time)
 
 def main():
     com_num = input("Input COM Port Number\n>>")
 
-    arduino_serial = ArduinoSerial()
-    arduino_serial.open(com_num)
-    print("COM Port Open.")
+    queue = Queue()
+    receiver_events = {
+        'open': Event(),
+        'start': Event(),
+        'close': Event(),
+        'failed_to_open': Event()
+    }
+    viewer_events = {
+        'stop': Event()
+    }
+
+    receiver = Process(target=serial_data_receiver, args=(receiver_events, queue, com_num))
+    viewer = Process(target=view_manager, args=(viewer_events, queue,))
+
+    receiver.start()
+
+    receiver_events['open'].wait()
+    if receiver_events['failed_to_open'].is_set():
+        receiver.terminate()
+        return 0
 
     try:
+        wait_start()
 
-        while True:
-            ipt = input('Press "start"\n>>')
-            if ipt == "start":
-                break
+        viewer.start()
+        receiver_events['start'].set()
 
-        view = View(length=500)
-        view.show()
+        wait_stop()
 
-        arduino_serial.start()
+    except Exception as e:
+        if e.__class__.__name__ != "KeyboardInterrupt":
+            print('Unexpected error occurred!\n')
+            raise e
 
-        cnt = 0
-        while True:
-            data = arduino_serial.read_voltage()
+    finally:
+        receiver_events['close'].set()
+        viewer_events['stop'].set()
+        receiver.join()
+        print("\nCOM Port Closed.\n")
 
-            if data == None:
-                continue
-
-            # print(data)
-            view.add_data(data)
-            cnt = (cnt + 1) % UPDATE_CNT
-
-            if cnt == 0:
-                view.update()
-
-    except KeyboardInterrupt:
-        arduino_serial.stop()
-        arduino_serial.close()
-        print("COM Port Closed.")
-
-        sys.exit(0)
-
+    return
 
 if __name__ == "__main__":
     main()
